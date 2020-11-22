@@ -6,13 +6,14 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Numerics;
 using System.Text.RegularExpressions;
+using System.IO;
 
 
 namespace asymCrypto_1
 {
     class Program
     {
-        static int byteSequenceLength = (int)Math.Pow(2, 18);
+        static int byteSequenceLength = (int)Math.Pow(2, 18)+1;
         static byte[] GenerateRandomByteSeed(int size)//функция генерации начального заполнения
         {
             Random rnd = new Random();
@@ -232,16 +233,21 @@ namespace asymCrypto_1
         }
 
         //--------------------------------------------------------  L I B R A R I A N  --------------------------------------------------------------
-        static string path = "";//путь к файлу откуда считывать текст для шифрования
+        static string path = @"C:/Users/luciu/source/repos/kant.txt";//путь к файлу откуда считывать текст для шифрования
         static string Filter(string input)
         {
             string temp = Regex.Replace(input,@"\W","").ToLower();
             string output = Regex.Replace(temp, @"\d", "");
             return output;
         }
-        static byte[] Librarian()
+        static byte[] Librarian(string path)
         {
             byte[] bytes = new byte[byteSequenceLength];
+            string content = File.ReadAllText(path);
+            for (int i = 0; i < byteSequenceLength; i++)
+            {
+                bytes[i] = (byte)content[i];
+            }
             return bytes;
         }
        
@@ -257,13 +263,12 @@ namespace asymCrypto_1
                           constBMBytes = (pBM - BigInteger.One) / (new BigInteger(256));
         static byte[] BMBits(BigInteger t0)
         {
-            int[] bits = new int[8];                        // нам тут нужен Т0 типа мы х0 получаем из него или из Т1 ???
-            int j = 0;                                       //у меня сейчас получаестся что из Т1
-            List<byte> bytes = new List<byte>();             //и тот же вопрос для байтовой модификации
+            int[] bits = new int[8];                 
+            int j = 0;                                 
+            List<byte> bytes = new List<byte>();             
             var tNext = t0;
             for(int i = 0; i < byteSequenceLength*8; i++)
             {
-                tNext = BigInteger.ModPow(aBM, tNext>=BigInteger.Zero?tNext:tNext+pBM, pBM);
                 if(tNext < constBMBits) {
                     bits[j] = 1;
                 }
@@ -277,6 +282,7 @@ namespace asymCrypto_1
                     j = 0;
                     bytes.Add(Convert.ToByte(String.Join("", bits), 2));
                 }
+                tNext = BigInteger.ModPow(aBM, tNext >= BigInteger.Zero ? tNext : tNext + pBM, pBM);
             }
             return bytes.ToArray();
         }
@@ -288,7 +294,6 @@ namespace asymCrypto_1
             bool condition1, condition2;
             for (int i = 0; i < byteSequenceLength; i++)
             {
-                tNext = BigInteger.ModPow(aBM, tNext >= BigInteger.Zero ? tNext : tNext + pBM, pBM);
                 for(int k = 0; k < 256; k++)
                 {
                     condition1 = tNext > (constBMBytes * (new BigInteger(k)));       
@@ -299,7 +304,7 @@ namespace asymCrypto_1
                         break;
                     }
                 }
-              
+                tNext = BigInteger.ModPow(aBM, tNext >= BigInteger.Zero ? tNext : tNext + pBM, pBM);
             }
             return bytes;
         }
@@ -408,25 +413,42 @@ namespace asymCrypto_1
                     }
                 }
             }
-            hiSquared = n * (s - 1);
+            hiSquared = n * (s - 1.0);
             bool result = hiSquared <= theorHiSquared;
             return Tuple.Create(hiSquared,result);
         }
 
         //----------------------- U N I F O R M I T Y
-        static double CalculateTheorHiSquared(double quantile, int l)// l зависит от теста: 1 - l =255
-             => Math.Sqrt(2 * l) * quantile + l;                     //                     2 - l = 255*255
-                                                                     //                     3 - l = 255*(r-1)
+        static double CalculateTheorHiSquared(double quantile, double l)// l зависит от теста:  1 - l =255
+             => Math.Sqrt(2 * l) * quantile + l;                     //                         2 - l = 255*255
+                                                                     //                         3 - l = 255*(r-1)
         static Tuple<int[,],int[]> CountItemsUniformity(byte[] bytes,int r)
         {
             int m = byteSequenceLength / r,
                 n = m * r;
 
-            int[,] vij = new int[256,r];
+            int[,] vij = new int[256,r]; 
             int[] vi = new int[256];
-            
-            //подсчет  компонент
 
+            int rCount = -1;
+
+            for(int i = 0; i < n; i++)
+            {
+                if (i % m == 0)
+                {
+                    rCount++;
+                }
+                vij[bytes[i], rCount]++;
+               //vi[bytes[i]]++;
+            }
+
+            for (int i = 0; i < 256; i++)
+            {
+                for (int j = 0; j < r; j++)
+                {
+                    vi[i] += vij[i, j];
+                }
+            }
             return Tuple.Create(vij,vi);
         }
         static Tuple<double, bool> UniformityTEST(Tuple<int[,],int[]> counts, double theorHiSquared)
@@ -444,7 +466,7 @@ namespace asymCrypto_1
                     }
                 }
             }
-            hiSquared = n * (s - 1);
+            hiSquared = n * (s - 1.0);
             bool result = hiSquared <= theorHiSquared;
             return Tuple.Create(hiSquared, result);
         }
@@ -469,28 +491,87 @@ namespace asymCrypto_1
             {0, 0, 0}};                                    // 0.01 test3;  0.05 test3;  0.1 test3;
 
             Console.WriteLine("Generator:".PadRight(15) + " | " + "Test:".PadRight(20) + " | " + "Alpha :".PadRight(7) + " | " + "X^2 :".PadRight(20) + " | " + "X^2_alpha :".PadRight(15) + " | Result: ");
-            Console.WriteLine("--------------------------------------------------------------------------------------------------");
-            var seed = GenerateRandomByteSeed(4);
-            var bbsBytes = BBSBytes(new BigInteger(seed));
-            int r = 8;
+            Console.WriteLine("--------------------------------------------------------------------------------------------------"+"\n");
 
-            for(int i = 0; i < 3; i++)
+            var seed = GenerateRandomByteSeed(4);
+            int r = 10;
+
+            var LehmerLowBytes = LehmerLow(new BigInteger(seed));
+            for (int i = 0; i < 3; i++)
+            {
+                var LehmerLowBytesEquiprobResults = EquiprobabilityTEST(CountBytes(LehmerLowBytes), TheoryChiSquared[0, i]);
+                DisplayTestResut("LehmerLow", "Equiprobability", Alpha[i], LehmerLowBytesEquiprobResults.Item1, TheoryChiSquared[0, i], LehmerLowBytesEquiprobResults.Item2);
+                var LehmerLowBytesIndependResults = IndependenceTEST(CountItemsIndependence(LehmerLowBytes), TheoryChiSquared[1, i]);
+                DisplayTestResut("LehmerLow", "Independence", Alpha[i], LehmerLowBytesIndependResults.Item1, TheoryChiSquared[1, i], LehmerLowBytesIndependResults.Item2);
+                TheoryChiSquared[2, i] = CalculateTheorHiSquared(Quantiles[i], 255 * (r - 1));
+                var LehmerLowBytesUniformResults = UniformityTEST(CountItemsUniformity(LehmerLowBytes, r), TheoryChiSquared[2, i]);
+                DisplayTestResut("LehmerLow", "Uniformity", Alpha[i], LehmerLowBytesUniformResults.Item1, TheoryChiSquared[2, i], LehmerLowBytesUniformResults.Item2);
+            }
+            Console.WriteLine();
+
+            var LibrarianBytes = Librarian(path);
+            for (int i = 0; i < 3; i++)
+            {
+                var LibrarianBytesEquiprobResults = EquiprobabilityTEST(CountBytes(LibrarianBytes), TheoryChiSquared[0, i]);
+                DisplayTestResut("Librarian", "Equiprobability", Alpha[i], LibrarianBytesEquiprobResults.Item1, TheoryChiSquared[0, i], LibrarianBytesEquiprobResults.Item2);
+                var LibrarianBytesIndependResults = IndependenceTEST(CountItemsIndependence(LibrarianBytes), TheoryChiSquared[1, i]);
+                DisplayTestResut("Librarian", "Independence", Alpha[i], LibrarianBytesIndependResults.Item1, TheoryChiSquared[1, i], LibrarianBytesIndependResults.Item2);
+                TheoryChiSquared[2, i] = CalculateTheorHiSquared(Quantiles[i], 255 * (r - 1));
+                var LibrarianBytesUniformResults = UniformityTEST(CountItemsUniformity(LibrarianBytes, r), TheoryChiSquared[2, i]);
+                DisplayTestResut("Librarian", "Uniformity", Alpha[i], LibrarianBytesUniformResults.Item1, TheoryChiSquared[2, i], LibrarianBytesUniformResults.Item2);
+            }
+            Console.WriteLine();
+
+            var LehmerHighBytes = LehmerHigh(new BigInteger(seed));
+            for (int i = 0; i < 3; i++)
+            {
+                var LehmerHighBytesEquiprobResults = EquiprobabilityTEST(CountBytes(LehmerHighBytes), TheoryChiSquared[0, i]);
+                DisplayTestResut("LehmerHigh", "Equiprobability", Alpha[i], LehmerHighBytesEquiprobResults.Item1, TheoryChiSquared[0, i], LehmerHighBytesEquiprobResults.Item2);
+                var LehmerHighBytesIndependResults = IndependenceTEST(CountItemsIndependence(LehmerHighBytes), TheoryChiSquared[1, i]);
+                DisplayTestResut("LehmerHigh", "Independence", Alpha[i], LehmerHighBytesIndependResults.Item1, TheoryChiSquared[1, i], LehmerHighBytesIndependResults.Item2);
+                TheoryChiSquared[2, i] = CalculateTheorHiSquared(Quantiles[i], 255 * (r - 1));
+                var LehmerHighBytesUniformResults = UniformityTEST(CountItemsUniformity(LehmerHighBytes, r), TheoryChiSquared[2, i]);
+                DisplayTestResut("LehmerHigh", "Uniformity", Alpha[i], LehmerHighBytesUniformResults.Item1, TheoryChiSquared[2, i], LehmerHighBytesUniformResults.Item2);
+            }
+            Console.WriteLine();
+
+            var bbsBytes = BBSBytes(new BigInteger(seed));
+            for (int i = 0; i < 3; i++)
             {
                 var bbsBytesEquiprobResults = EquiprobabilityTEST(CountBytes(bbsBytes), TheoryChiSquared[0, i]);
                 DisplayTestResut("BBS bytes", "Equiprobability", Alpha[i], bbsBytesEquiprobResults.Item1, TheoryChiSquared[0, i], bbsBytesEquiprobResults.Item2);
-            }
-            for (int i = 0; i < 3; i++)
-            {
                 var bbsBytesIndependResults = IndependenceTEST(CountItemsIndependence(bbsBytes), TheoryChiSquared[1, i]);
-                DisplayTestResut("BBS bytes", "Independence", Alpha[i], bbsBytesIndependResults.Item1, TheoryChiSquared[1, i], bbsBytesIndependResults.Item2);
-            }
-            for (int i = 0; i < 3; i++)
-            {
-                TheoryChiSquared[2, i] = CalculateTheorHiSquared(Quantiles[i],255*(r-1));
-                var bbsBytesUniformResults = UniformityTEST(CountItemsUniformity(bbsBytes,r), TheoryChiSquared[2, i]);
+                DisplayTestResut("BBS bytes", "Independence", Alpha[i], bbsBytesIndependResults.Item1, TheoryChiSquared[1, i], bbsBytesIndependResults.Item2); TheoryChiSquared[2, i] = CalculateTheorHiSquared(Quantiles[i], 255 * (r - 1));
+                var bbsBytesUniformResults = UniformityTEST(CountItemsUniformity(bbsBytes, r), TheoryChiSquared[2, i]);
                 DisplayTestResut("BBS bytes", "Uniformity", Alpha[i], bbsBytesUniformResults.Item1, TheoryChiSquared[2, i], bbsBytesUniformResults.Item2);
             }
 
+
+
+
+
+
+
+
+            // проверка подсчета штучек для 3 теста
+            //byte[] arr = new byte[] { 0, 0, 0, 4, 3, 4, 3, 3, 5, 6, 6, 7, 3, 6, 3,0 };
+
+            //var k = CountItemsUniformity(arr, 4);
+            //for (int i = 0; i < k.Item1.GetLength(0); i++)
+            //{
+            //    for (int j = 0; j < k.Item1.GetLength(1); j++)
+            //    {
+            //        Console.Write(k.Item1[i, j] + " ");
+            //    }
+            //    Console.WriteLine();
+            //}
+
+
+            //Console.WriteLine();
+            //for (int j = 0; j < k.Item2.GetLength(0); j++)
+            //{
+            //    Console.Write(k.Item2[j] + " ");
+            //}
             Console.ReadKey();
         }
     }
