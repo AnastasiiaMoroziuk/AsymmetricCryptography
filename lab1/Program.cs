@@ -13,7 +13,7 @@ namespace asymCrypto_1
 {
     class Program
     {
-        static int byteSequenceLength = (int)Math.Pow(2, 18)+1;
+        static int byteSequenceLength = (int)Math.Pow(2, 18);
         static byte[] GenerateRandomByteSeed(int size)//функция генерации начального заполнения
         {
             Random rnd = new Random();
@@ -43,7 +43,6 @@ namespace asymCrypto_1
             return seed;
         }
 
-
         //----------------------------------------------- L E H M E R E ------------------------------------------------------------------
 
         static BigInteger M = new BigInteger(Math.Pow(2, 32));
@@ -67,8 +66,12 @@ namespace asymCrypto_1
             for (int i = 0; i < byteSequenceLength; i++)
             {
                 next = LehmerNext(next);
-                var nextArr = next.ToByteArray(true,false);
-                bytes[i]=nextArr[nextArr.Length - 1];
+                var nextArr = next.ToByteArray(true, false);
+                if (nextArr.Length < 4) bytes[i] = (byte)0;
+                else { 
+                    bytes[i] = nextArr[nextArr.Length - 1];
+                }
+               
             }
             return bytes;
         }
@@ -173,7 +176,7 @@ namespace asymCrypto_1
             List<byte> bytes = new List<byte>();
             for (int i = 0; i < byteSequenceLength * 8; i++)
             {
-                bits[j] = l10_seq[i] & l11_seq[i] ^ (1 ^ l10_seq[i]) & l9_seq[i];
+                bits[j] = (l10_seq[i] & l11_seq[i]) ^ ((1 ^ l10_seq[i]) & l9_seq[i]);
                 j++;
                 if (j == 8)
                 {
@@ -233,34 +236,48 @@ namespace asymCrypto_1
         }
 
         //--------------------------------------------------------  L I B R A R I A N  --------------------------------------------------------------
-        static string path = @"C:/Users/luciu/source/repos/kant.txt";//путь к файлу откуда считывать текст для шифрования
         static string Filter(string input)
         {
-            string temp = Regex.Replace(input,@"\W","").ToLower();
+            string temp = Regex.Replace(input, @"\W", "").ToLower();
             string output = Regex.Replace(temp, @"\d", "");
             return output;
         }
-        static byte[] Librarian(string path)
+        static byte[] Librarian(string pathInput)
         {
             byte[] bytes = new byte[byteSequenceLength];
-            string content = File.ReadAllText(path);
+            string content = File.ReadAllText(pathInput);
+            string filteredText = Filter(content);
             for (int i = 0; i < byteSequenceLength; i++)
             {
-                bytes[i] = (byte)content[i];
+                bytes[i] = (byte)filteredText[i];
             }
             return bytes;
         }
-       
+
 
         //---------------------------------------------------------------  B M  ---------------------------------------------------------------------
 
-        //static BigInteger pBM = BigInteger.Parse("CEA42B987C44FA642D80AD9F51F10457690DEF10C83D0BC1BCEE12FC3B6093E3", System.Globalization.NumberStyles.AllowHexSpecifier),
+        static BigInteger pBM1 = BigInteger.Parse("CEA42B987C44FA642D80AD9F51F10457690DEF10C83D0BC1BCEE12FC3B6093E3", System.Globalization.NumberStyles.AllowHexSpecifier);
         //static BigInteger                 aBM = BigInteger.Parse("5B88C41246790891C095E2878880342E88C79974303BD0400B090FE38A688356", System.Globalization.NumberStyles.AllowHexSpecifier);
 
         static BigInteger pBM = BigInteger.Parse("93466510612868436543809057926265637055082661966786875228460721852868821292003"),
                           aBM = BigInteger.Parse("41402113656871763270073938229168765778879686959780184368336806110280536326998"),
                           constBMBits = (pBM - BigInteger.One) / (new BigInteger(2)),
                           constBMBytes = (pBM - BigInteger.One) / (new BigInteger(256));
+
+        static byte[] GenerateBMSeed()
+        {
+            Random rnd = new Random();
+            byte[] max = (pBM - BigInteger.One).ToByteArray(true, false);
+            var maxByteValue = max[max.Length - 1];
+            byte[] seed = new byte[32];
+            rnd.NextBytes(seed);
+            seed[31] = (byte)rnd.Next(0, (int)maxByteValue);
+            //seed[seed.Length - 1] &= 0b01111111;
+            return seed;
+        }
+
+
         static byte[] BMBits(BigInteger t0)
         {
             int[] bits = new int[8];                 
@@ -347,7 +364,6 @@ namespace asymCrypto_1
                 rNext = BigInteger.ModPow(rNext, 2, nBBS);
                 var rNextArray = rNext.ToByteArray(true, false);
                 byte lowestByte = rNextArray[0];
-                //bit[j] = Int32.Parse(Convert.ToString(lowestByte, 2)[Convert.ToString(lowestByte, 2).Length-1].ToString());
                 bits[j] = lowestByte % 2;
                 j++;
                 if (j == 8)
@@ -420,28 +436,27 @@ namespace asymCrypto_1
 
         //----------------------- U N I F O R M I T Y
         static double CalculateTheorHiSquared(double quantile, double l)// l зависит от теста:  1 - l =255
-             => Math.Sqrt(2 * l) * quantile + l;                     //                         2 - l = 255*255
+             => Math.Round(Math.Sqrt(2 * l) * quantile + l,8);        //                        2 - l = 255*255
                                                                      //                         3 - l = 255*(r-1)
-        static Tuple<int[,],int[]> CountItemsUniformity(byte[] bytes,int r)
+
+        static Tuple<double[,], double[]> CountItemsUniformity(byte[] bytes, int r)
         {
             int m = byteSequenceLength / r,
                 n = m * r;
 
-            int[,] vij = new int[256,r]; 
-            int[] vi = new int[256];
+            double[,] vij = new double[256, r];
+            double[] vi = new double[256];
 
             int rCount = -1;
 
-            for(int i = 0; i < n; i++)
+            for (int i = 0; i < n; i++)
             {
                 if (i % m == 0)
                 {
                     rCount++;
                 }
                 vij[bytes[i], rCount]++;
-               //vi[bytes[i]]++;
             }
-
             for (int i = 0; i < 256; i++)
             {
                 for (int j = 0; j < r; j++)
@@ -449,16 +464,17 @@ namespace asymCrypto_1
                     vi[i] += vij[i, j];
                 }
             }
-            return Tuple.Create(vij,vi);
+
+            return Tuple.Create(vij, vi);
         }
-        static Tuple<double, bool> UniformityTEST(Tuple<int[,],int[]> counts, double theorHiSquared)
+        static Tuple<double, bool> UniformityTEST(Tuple<double[,],double[]> counts, double theorHiSquared)
         {
             int m = byteSequenceLength / counts.Item1.GetLength(1),
-                n = byteSequenceLength * counts.Item1.GetLength(1);
+                n = m * counts.Item1.GetLength(1);
             double hiSquared, s=0;
-            for(int i = 0; i < 256; i++)
+            for (int i = 0; i < 256; i++)
             {
-                for(int j = 0; j < counts.Item1.GetLength(1); j++)
+                for (int j = 0; j < counts.Item1.GetLength(1); j++)
                 {
                     if (counts.Item2[i] != 0)
                     {
@@ -466,17 +482,17 @@ namespace asymCrypto_1
                     }
                 }
             }
+
             hiSquared = n * (s - 1.0);
             bool result = hiSquared <= theorHiSquared;
             return Tuple.Create(hiSquared, result);
         }
 
-//----------------------------------------------------------------------------------------------------------------------------------------------
-      static void DisplayTestResut(string generatorName, string testName,double alpha, double hiSquared, double theorHiSquared, bool result)
+        //----------------------------------------------------------------------------------------------------------------------------------------------
+      static void DisplayTestResut(string pathOutput,string generatorName, string testName,double alpha, double hiSquared, double theorHiSquared, bool result)
         {
-            Console.WriteLine(generatorName.PadRight(15) + " | " + testName.PadRight(20) + " | " + alpha.ToString().PadRight(7) + " | " + hiSquared.ToString().PadRight(20) + " | " + theorHiSquared.ToString().PadRight(15) + " | " + result );
-            Console.WriteLine("---------------------------------------------------------------------------------------------------");
-
+            File.AppendAllText(pathOutput, generatorName.PadRight(15) + " | " + testName.PadRight(20) + " | " + alpha.ToString().PadRight(7) + " | " + hiSquared.ToString().PadRight(20) + " | " + theorHiSquared.ToString().PadRight(15) + " | " + result +'\n');
+            File.AppendAllText(pathOutput, "--------------------------------------------------------------------------------------------------" + "\n");
         }
         //----------------------------------------------------------------------------------------------------------------------------------------------
         static void Main(string[] args)
@@ -490,88 +506,208 @@ namespace asymCrypto_1
             {65863.8124, 65618.2272, 65487.3205},          // 0.01 test2;  0.05 test2;  0.1 test2;
             {0, 0, 0}};                                    // 0.01 test3;  0.05 test3;  0.1 test3;
 
-            Console.WriteLine("Generator:".PadRight(15) + " | " + "Test:".PadRight(20) + " | " + "Alpha :".PadRight(7) + " | " + "X^2 :".PadRight(20) + " | " + "X^2_alpha :".PadRight(15) + " | Result: ");
-            Console.WriteLine("--------------------------------------------------------------------------------------------------"+"\n");
+            string pathInput = @"C:/Users/luciu/source/repos/kant.txt";
+            string outputPath = @"C:/Users/luciu/Desktop/asymCryptoOutput/output.txt";
+            string outputGeffe11 = @"C:/Users/luciu/Desktop/asymCryptoOutput/output_geffe11.txt";
+
+
+            File.WriteAllText(outputPath, "Generator:".PadRight(15) + " | " + "Test:".PadRight(20) + " | " + "Alpha :".PadRight(7) + " | " + "X^2 :".PadRight(20) + " | " + "X^2_alpha :".PadRight(15) + " | Result: " + "\n");
+            File.AppendAllText(outputPath, "\n"+"--------------------------------------------------------------------------------------------------" + "\n");
+
+
 
             var seed = GenerateRandomByteSeed(4);
-            int r = 10;
+            int r = 15;
+
+            var inbuildBytes = GenerateRandomByteSeed(byteSequenceLength);
+            for (int i = 0; i < 3; i++)
+            {
+                var inbuildBytesEquiprobResults = EquiprobabilityTEST(CountBytes(inbuildBytes), TheoryChiSquared[0, i]);
+                DisplayTestResut(outputPath, "Inbuild", "Equiprobability", Alpha[i], inbuildBytesEquiprobResults.Item1, TheoryChiSquared[0, i], inbuildBytesEquiprobResults.Item2);
+                var inbuildBytesIndependResults = IndependenceTEST(CountItemsIndependence(inbuildBytes), TheoryChiSquared[1, i]);
+                DisplayTestResut(outputPath, "Inbuild", "Independence", Alpha[i], inbuildBytesIndependResults.Item1, TheoryChiSquared[1, i], inbuildBytesIndependResults.Item2);
+                TheoryChiSquared[2, i] = CalculateTheorHiSquared(Quantiles[i], 255 * (r - 1));
+                var inbuildBytesUniformResults = UniformityTEST(CountItemsUniformity(inbuildBytes, r), TheoryChiSquared[2, i]);
+                DisplayTestResut(outputPath, "Inbuild", "Uniformity", Alpha[i], inbuildBytesUniformResults.Item1, TheoryChiSquared[2, i], inbuildBytesUniformResults.Item2);
+            }
+            File.AppendAllText(outputPath, "\n");
 
             var LehmerLowBytes = LehmerLow(new BigInteger(seed));
             for (int i = 0; i < 3; i++)
             {
                 var LehmerLowBytesEquiprobResults = EquiprobabilityTEST(CountBytes(LehmerLowBytes), TheoryChiSquared[0, i]);
-                DisplayTestResut("LehmerLow", "Equiprobability", Alpha[i], LehmerLowBytesEquiprobResults.Item1, TheoryChiSquared[0, i], LehmerLowBytesEquiprobResults.Item2);
+                DisplayTestResut(outputPath, "LehmerLow", "Equiprobability", Alpha[i], LehmerLowBytesEquiprobResults.Item1, TheoryChiSquared[0, i], LehmerLowBytesEquiprobResults.Item2);
                 var LehmerLowBytesIndependResults = IndependenceTEST(CountItemsIndependence(LehmerLowBytes), TheoryChiSquared[1, i]);
-                DisplayTestResut("LehmerLow", "Independence", Alpha[i], LehmerLowBytesIndependResults.Item1, TheoryChiSquared[1, i], LehmerLowBytesIndependResults.Item2);
+                DisplayTestResut(outputPath, "LehmerLow", "Independence", Alpha[i], LehmerLowBytesIndependResults.Item1, TheoryChiSquared[1, i], LehmerLowBytesIndependResults.Item2);
                 TheoryChiSquared[2, i] = CalculateTheorHiSquared(Quantiles[i], 255 * (r - 1));
                 var LehmerLowBytesUniformResults = UniformityTEST(CountItemsUniformity(LehmerLowBytes, r), TheoryChiSquared[2, i]);
-                DisplayTestResut("LehmerLow", "Uniformity", Alpha[i], LehmerLowBytesUniformResults.Item1, TheoryChiSquared[2, i], LehmerLowBytesUniformResults.Item2);
+                DisplayTestResut(outputPath, "LehmerLow", "Uniformity", Alpha[i], LehmerLowBytesUniformResults.Item1, TheoryChiSquared[2, i], LehmerLowBytesUniformResults.Item2);
             }
-            Console.WriteLine();
-
-            var LibrarianBytes = Librarian(path);
-            for (int i = 0; i < 3; i++)
-            {
-                var LibrarianBytesEquiprobResults = EquiprobabilityTEST(CountBytes(LibrarianBytes), TheoryChiSquared[0, i]);
-                DisplayTestResut("Librarian", "Equiprobability", Alpha[i], LibrarianBytesEquiprobResults.Item1, TheoryChiSquared[0, i], LibrarianBytesEquiprobResults.Item2);
-                var LibrarianBytesIndependResults = IndependenceTEST(CountItemsIndependence(LibrarianBytes), TheoryChiSquared[1, i]);
-                DisplayTestResut("Librarian", "Independence", Alpha[i], LibrarianBytesIndependResults.Item1, TheoryChiSquared[1, i], LibrarianBytesIndependResults.Item2);
-                TheoryChiSquared[2, i] = CalculateTheorHiSquared(Quantiles[i], 255 * (r - 1));
-                var LibrarianBytesUniformResults = UniformityTEST(CountItemsUniformity(LibrarianBytes, r), TheoryChiSquared[2, i]);
-                DisplayTestResut("Librarian", "Uniformity", Alpha[i], LibrarianBytesUniformResults.Item1, TheoryChiSquared[2, i], LibrarianBytesUniformResults.Item2);
-            }
-            Console.WriteLine();
+            File.AppendAllText(outputPath, "\n");
 
             var LehmerHighBytes = LehmerHigh(new BigInteger(seed));
             for (int i = 0; i < 3; i++)
             {
                 var LehmerHighBytesEquiprobResults = EquiprobabilityTEST(CountBytes(LehmerHighBytes), TheoryChiSquared[0, i]);
-                DisplayTestResut("LehmerHigh", "Equiprobability", Alpha[i], LehmerHighBytesEquiprobResults.Item1, TheoryChiSquared[0, i], LehmerHighBytesEquiprobResults.Item2);
+                DisplayTestResut(outputPath, "LehmerHigh", "Equiprobability", Alpha[i], LehmerHighBytesEquiprobResults.Item1, TheoryChiSquared[0, i], LehmerHighBytesEquiprobResults.Item2);
                 var LehmerHighBytesIndependResults = IndependenceTEST(CountItemsIndependence(LehmerHighBytes), TheoryChiSquared[1, i]);
-                DisplayTestResut("LehmerHigh", "Independence", Alpha[i], LehmerHighBytesIndependResults.Item1, TheoryChiSquared[1, i], LehmerHighBytesIndependResults.Item2);
+                DisplayTestResut(outputPath, "LehmerHigh", "Independence", Alpha[i], LehmerHighBytesIndependResults.Item1, TheoryChiSquared[1, i], LehmerHighBytesIndependResults.Item2);
                 TheoryChiSquared[2, i] = CalculateTheorHiSquared(Quantiles[i], 255 * (r - 1));
                 var LehmerHighBytesUniformResults = UniformityTEST(CountItemsUniformity(LehmerHighBytes, r), TheoryChiSquared[2, i]);
-                DisplayTestResut("LehmerHigh", "Uniformity", Alpha[i], LehmerHighBytesUniformResults.Item1, TheoryChiSquared[2, i], LehmerHighBytesUniformResults.Item2);
+                DisplayTestResut(outputPath, "LehmerHigh", "Uniformity", Alpha[i], LehmerHighBytesUniformResults.Item1, TheoryChiSquared[2, i], LehmerHighBytesUniformResults.Item2);
             }
-            Console.WriteLine();
+            File.AppendAllText(outputPath, "\n");
+
+            var l20Bytes = L_20(GenerateRandomBitsSeed(20), byteSequenceLength * 8);
+            for (int i = 0; i < 3; i++)
+            {
+                var l20BytesEquiprobResults = EquiprobabilityTEST(CountBytes(l20Bytes), TheoryChiSquared[0, i]);
+                DisplayTestResut(outputPath, "L_20", "Equiprobability", Alpha[i], l20BytesEquiprobResults.Item1, TheoryChiSquared[0, i], l20BytesEquiprobResults.Item2);
+                var l20BytesIndependResults = IndependenceTEST(CountItemsIndependence(l20Bytes), TheoryChiSquared[1, i]);
+                DisplayTestResut(outputPath, "L_20", "Independence", Alpha[i], l20BytesIndependResults.Item1, TheoryChiSquared[1, i], l20BytesIndependResults.Item2);
+                TheoryChiSquared[2, i] = CalculateTheorHiSquared(Quantiles[i], 255 * (r - 1));
+                var l20BytesUniformResults = UniformityTEST(CountItemsUniformity(l20Bytes, r), TheoryChiSquared[2, i]);
+                DisplayTestResut(outputPath, "L_20", "Uniformity", Alpha[i], l20BytesUniformResults.Item1, TheoryChiSquared[2, i], l20BytesUniformResults.Item2);
+            }
+            File.AppendAllText(outputPath, "\n");
+
+            var l89Bytes = L_89(GenerateRandomBitsSeed(89), byteSequenceLength * 8);
+            for (int i = 0; i < 3; i++)
+            {
+                var l89BytesEquiprobResults = EquiprobabilityTEST(CountBytes(l89Bytes), TheoryChiSquared[0, i]);
+                DisplayTestResut(outputPath, "L_89", "Equiprobability", Alpha[i], l89BytesEquiprobResults.Item1, TheoryChiSquared[0, i], l89BytesEquiprobResults.Item2);
+                var l89BytesIndependResults = IndependenceTEST(CountItemsIndependence(l89Bytes), TheoryChiSquared[1, i]);
+                DisplayTestResut(outputPath, "L_89", "Independence", Alpha[i], l89BytesIndependResults.Item1, TheoryChiSquared[1, i], l89BytesIndependResults.Item2);
+                TheoryChiSquared[2, i] = CalculateTheorHiSquared(Quantiles[i], 255 * (r - 1));
+                var l89BytesUniformResults = UniformityTEST(CountItemsUniformity(l20Bytes, r), TheoryChiSquared[2, i]);
+                DisplayTestResut(outputPath, "L_89", "Uniformity", Alpha[i], l89BytesUniformResults.Item1, TheoryChiSquared[2, i], l89BytesUniformResults.Item2);
+            }
+            File.AppendAllText(outputPath, "\n");
+
+            var l9 = L_9(GenerateRandomBitsSeed(9), byteSequenceLength * 8);
+                var l10 = L_10(GenerateRandomBitsSeed(10), byteSequenceLength * 8);
+                var l11 = L_9(GenerateRandomBitsSeed(11), byteSequenceLength * 8);
+                var geffeBytes = Geffe(l9, l10, l11);
+
+             for (int i = 0; i < 3; i++)
+              {
+             var geffeBytesEquiprobResults = EquiprobabilityTEST(CountBytes(geffeBytes), TheoryChiSquared[0, i]);
+             DisplayTestResut(outputPath, "Geffe", "Equiprobability", Alpha[i], geffeBytesEquiprobResults.Item1, TheoryChiSquared[0, i], geffeBytesEquiprobResults.Item2);
+             var geffeBytesIndependResults = IndependenceTEST(CountItemsIndependence(geffeBytes), TheoryChiSquared[1, i]);
+             DisplayTestResut(outputPath, "Geffe", "Independence", Alpha[i], geffeBytesIndependResults.Item1, TheoryChiSquared[1, i], geffeBytesIndependResults.Item2);
+             TheoryChiSquared[2, i] = CalculateTheorHiSquared(Quantiles[i], 255 * (r - 1));
+             var geffeBytesUniformResults = UniformityTEST(CountItemsUniformity(geffeBytes, r), TheoryChiSquared[2, i]);
+             DisplayTestResut(outputPath, "Geffe", "Uniformity", Alpha[i], geffeBytesUniformResults.Item1, TheoryChiSquared[2, i], geffeBytesUniformResults.Item2);
+            }
+            File.AppendAllText(outputPath, "\n");
+
+            var bitsSeed = GenerateRandomBitsSeed(32);
+
+            var wolframBytes = Wolfram(bitsSeed);
+            for (int i = 0; i < 3; i++)
+            {
+                var wolframBytesEquiprobResults = EquiprobabilityTEST(CountBytes(wolframBytes), TheoryChiSquared[0, i]);
+                DisplayTestResut(outputPath, "Wolfram", "Equiprobability", Alpha[i], wolframBytesEquiprobResults.Item1, TheoryChiSquared[0, i], wolframBytesEquiprobResults.Item2);
+                var wolframBytesIndependResults = IndependenceTEST(CountItemsIndependence(wolframBytes), TheoryChiSquared[1, i]);
+                DisplayTestResut(outputPath, "Wolfram", "Independence", Alpha[i], wolframBytesIndependResults.Item1, TheoryChiSquared[1, i], wolframBytesIndependResults.Item2);
+                TheoryChiSquared[2, i] = CalculateTheorHiSquared(Quantiles[i], 255 * (r - 1));
+                var wolframBytesUniformResults = UniformityTEST(CountItemsUniformity(geffeBytes, r), TheoryChiSquared[2, i]);
+                DisplayTestResut(outputPath, "Wolfram", "Uniformity", Alpha[i], wolframBytesUniformResults.Item1, TheoryChiSquared[2, i], wolframBytesUniformResults.Item2);
+            }
+            File.AppendAllText(outputPath, "\n");
+
+            var LibrarianBytes = Librarian(pathInput);
+            for (int i = 0; i < 3; i++)
+            {
+                var LibrarianBytesEquiprobResults = EquiprobabilityTEST(CountBytes(LibrarianBytes), TheoryChiSquared[0, i]);
+                DisplayTestResut(outputPath, "Librarian", "Equiprobability", Alpha[i], LibrarianBytesEquiprobResults.Item1, TheoryChiSquared[0, i], LibrarianBytesEquiprobResults.Item2);
+                var LibrarianBytesIndependResults = IndependenceTEST(CountItemsIndependence(LibrarianBytes), TheoryChiSquared[1, i]);
+                DisplayTestResut(outputPath, "Librarian", "Independence", Alpha[i], LibrarianBytesIndependResults.Item1, TheoryChiSquared[1, i], LibrarianBytesIndependResults.Item2);
+                TheoryChiSquared[2, i] = CalculateTheorHiSquared(Quantiles[i], 255 * (r - 1));
+                var LibrarianBytesUniformResults = UniformityTEST(CountItemsUniformity(LibrarianBytes, r), TheoryChiSquared[2, i]);
+                DisplayTestResut(outputPath, "Librarian", "Uniformity", Alpha[i], LibrarianBytesUniformResults.Item1, TheoryChiSquared[2, i], LibrarianBytesUniformResults.Item2);
+            }
+            File.AppendAllText(outputPath, "\n");
 
             var bbsBytes = BBSBytes(new BigInteger(seed));
             for (int i = 0; i < 3; i++)
             {
                 var bbsBytesEquiprobResults = EquiprobabilityTEST(CountBytes(bbsBytes), TheoryChiSquared[0, i]);
-                DisplayTestResut("BBS bytes", "Equiprobability", Alpha[i], bbsBytesEquiprobResults.Item1, TheoryChiSquared[0, i], bbsBytesEquiprobResults.Item2);
+                DisplayTestResut(outputPath, "BBS bytes", "Equiprobability", Alpha[i], bbsBytesEquiprobResults.Item1, TheoryChiSquared[0, i], bbsBytesEquiprobResults.Item2);
                 var bbsBytesIndependResults = IndependenceTEST(CountItemsIndependence(bbsBytes), TheoryChiSquared[1, i]);
-                DisplayTestResut("BBS bytes", "Independence", Alpha[i], bbsBytesIndependResults.Item1, TheoryChiSquared[1, i], bbsBytesIndependResults.Item2); TheoryChiSquared[2, i] = CalculateTheorHiSquared(Quantiles[i], 255 * (r - 1));
+                DisplayTestResut(outputPath, "BBS bytes", "Independence", Alpha[i], bbsBytesIndependResults.Item1, TheoryChiSquared[1, i], bbsBytesIndependResults.Item2);
+                TheoryChiSquared[2, i] = CalculateTheorHiSquared(Quantiles[i], 255 * (r - 1));
+                var k = CountItemsUniformity(bbsBytes, r);
                 var bbsBytesUniformResults = UniformityTEST(CountItemsUniformity(bbsBytes, r), TheoryChiSquared[2, i]);
-                DisplayTestResut("BBS bytes", "Uniformity", Alpha[i], bbsBytesUniformResults.Item1, TheoryChiSquared[2, i], bbsBytesUniformResults.Item2);
+                DisplayTestResut(outputPath, "BBS bytes", "Uniformity", Alpha[i], bbsBytesUniformResults.Item1, TheoryChiSquared[2, i], bbsBytesUniformResults.Item2);
             }
+            File.AppendAllText(outputPath, "\n");
+
+            var bbsBits = BBSBits(new BigInteger(seed));
+            for (int i = 0; i < 3; i++)
+            {
+                var bbsBitsEquiprobResults = EquiprobabilityTEST(CountBytes(bbsBits), TheoryChiSquared[0, i]);
+                DisplayTestResut(outputPath, "BBS bits", "Equiprobability", Alpha[i], bbsBitsEquiprobResults.Item1, TheoryChiSquared[0, i], bbsBitsEquiprobResults.Item2);
+                var bbsBitsIndependResults = IndependenceTEST(CountItemsIndependence(bbsBits), TheoryChiSquared[1, i]);
+                DisplayTestResut(outputPath, "BBS bits", "Independence", Alpha[i], bbsBitsIndependResults.Item1, TheoryChiSquared[1, i], bbsBitsIndependResults.Item2);
+                TheoryChiSquared[2, i] = CalculateTheorHiSquared(Quantiles[i], 255 * (r - 1));
+                var bbsBitsUniformResults = UniformityTEST(CountItemsUniformity(bbsBits, r), TheoryChiSquared[2, i]);
+                DisplayTestResut(outputPath, "BBS bits", "Uniformity", Alpha[i], bbsBitsUniformResults.Item1, TheoryChiSquared[2, i], bbsBitsUniformResults.Item2);
+            }
+            File.AppendAllText(outputPath, "\n");
+
+            var bmBytes = BMBytes(new BigInteger(GenerateBMSeed()));
+            for (int i = 0; i < 3; i++)
+            {
+                var bmBytesEquiprobResults = EquiprobabilityTEST(CountBytes(bmBytes), TheoryChiSquared[0, i]);
+                DisplayTestResut(outputPath, "BM bytes", "Equiprobability", Alpha[i], bmBytesEquiprobResults.Item1, TheoryChiSquared[0, i], bmBytesEquiprobResults.Item2);
+                var bmBytesIndependResults = IndependenceTEST(CountItemsIndependence(bmBytes), TheoryChiSquared[1, i]);
+                DisplayTestResut(outputPath, "BM bytes", "Independence", Alpha[i], bmBytesIndependResults.Item1, TheoryChiSquared[1, i], bmBytesIndependResults.Item2);
+                TheoryChiSquared[2, i] = CalculateTheorHiSquared(Quantiles[i], 255 * (r - 1));
+                var bmBytesUniformResults = UniformityTEST(CountItemsUniformity(bmBytes, r), TheoryChiSquared[2, i]);
+                DisplayTestResut(outputPath, "BM bytes", "Uniformity", Alpha[i], bmBytesUniformResults.Item1, TheoryChiSquared[2, i], bmBytesUniformResults.Item2);
+            }
+            File.AppendAllText(outputPath, "\n");
+
+            var bmBits = BMBits(new BigInteger(GenerateBMSeed()));
+            for (int i = 0; i < 3; i++)
+            {
+                var bmBitsEquiprobResults = EquiprobabilityTEST(CountBytes(bmBits), TheoryChiSquared[0, i]);
+                DisplayTestResut(outputPath, "BM bits", "Equiprobability", Alpha[i], bmBitsEquiprobResults.Item1, TheoryChiSquared[0, i], bmBitsEquiprobResults.Item2);
+                var bmBitsIndependResults = IndependenceTEST(CountItemsIndependence(bmBits), TheoryChiSquared[1, i]);
+                DisplayTestResut(outputPath, "BM bits", "Independence", Alpha[i], bmBitsIndependResults.Item1, TheoryChiSquared[1, i], bmBitsIndependResults.Item2);
+                TheoryChiSquared[2, i] = CalculateTheorHiSquared(Quantiles[i], 255 * (r - 1));
+                var bmBitsUniformResults = UniformityTEST(CountItemsUniformity(bmBits, r), TheoryChiSquared[2, i]);
+                DisplayTestResut(outputPath, "BM bits", "Uniformity", Alpha[i], bmBitsUniformResults.Item1, TheoryChiSquared[2, i], bmBitsUniformResults.Item2);
+            }
+            File.AppendAllText(outputPath, "\n");
 
 
-
-
-
-
-
-
-            // проверка подсчета штучек для 3 теста
-            //byte[] arr = new byte[] { 0, 0, 0, 4, 3, 4, 3, 3, 5, 6, 6, 7, 3, 6, 3,0 };
-
-            //var k = CountItemsUniformity(arr, 4);
-            //for (int i = 0; i < k.Item1.GetLength(0); i++)
+            //int falsesCounter = 0;
+            //for (int j = 0; j < 1000; j++)
             //{
-            //    for (int j = 0; j < k.Item1.GetLength(1); j++)
+            //    var l9 = L_9(GenerateRandomBitsSeed(9), byteSequenceLength * 8);
+            //    var l10 = L_10(GenerateRandomBitsSeed(10), byteSequenceLength * 8);
+            //    var l11 = L_9(GenerateRandomBitsSeed(11), byteSequenceLength * 8);
+            //    var geffeBytes = Geffe(l9, l10, l11);
+
+            //    for (int i = 0; i < 3; i++)
             //    {
-            //        Console.Write(k.Item1[i, j] + " ");
+            //        //var geffeBytesEquiprobResults = EquiprobabilityTEST(CountBytes(geffeBytes), TheoryChiSquared[0, i]);
+            //        //DisplayTestResut(outputGeffe11, "Geffe", "Equiprobability", Alpha[i], geffeBytesEquiprobResults.Item1, TheoryChiSquared[0, i], geffeBytesEquiprobResults.Item2);
+            //        //var geffeBytesIndependResults = IndependenceTEST(CountItemsIndependence(geffeBytes), TheoryChiSquared[1, i]);
+            //        //DisplayTestResut(outputGeffe11, "Geffe", "Independence", Alpha[i], geffeBytesIndependResults.Item1, TheoryChiSquared[1, i], geffeBytesIndependResults.Item2);
+            //        TheoryChiSquared[2, i] = CalculateTheorHiSquared(Quantiles[i], 255 * (r - 1));
+            //        var geffeBytesUniformResults = UniformityTEST(CountItemsUniformity(geffeBytes, r), TheoryChiSquared[2, i]);
+            //        DisplayTestResut(outputGeffe11, "Geffe", "Uniformity", Alpha[i], geffeBytesUniformResults.Item1, TheoryChiSquared[2, i], geffeBytesUniformResults.Item2);
+            //        if (geffeBytesUniformResults.Item2 == false) falsesCounter++;
             //    }
-            //    Console.WriteLine();
+            //    File.AppendAllText(outputGeffe11, "\n");
             //}
+            //File.AppendAllText(outputGeffe11, "\n" + "Count of Falses: " + falsesCounter);
 
 
-            //Console.WriteLine();
-            //for (int j = 0; j < k.Item2.GetLength(0); j++)
-            //{
-            //    Console.Write(k.Item2[j] + " ");
-            //}
+            Console.WriteLine("done");
             Console.ReadKey();
         }
     }
