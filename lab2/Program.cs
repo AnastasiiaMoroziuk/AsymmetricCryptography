@@ -36,9 +36,9 @@ namespace asymCrypto_2
 
         static BigInteger ParseHex(string hexStr)
         {
-            string binary = HexToBin(hexStr);
-            BigInteger res = 0;
-            foreach (char c in binary)
+            string binaryStr = HexToBin(hexStr);
+            var res = BigInteger.Zero;
+            foreach (char c in binaryStr)
             {
                 res <<= 1;
                 res += c == '1' ? 1 : 0;
@@ -46,6 +46,7 @@ namespace asymCrypto_2
 
             return res;
         }
+
         //-------------------------------------------------------- M I L L E R  -  R A B I N    T E S T ------------------------------------------------------------------------------------
         static int pq_Length = 32;
         static BigInteger TWO = new BigInteger(2);
