@@ -297,11 +297,96 @@ namespace Asym_Crypto_Lab_3
 
         static Tuple<BigInteger, BigInteger, BigInteger> Encrypt(BigInteger x, BigInteger b, BigInteger n)
         {
+            //x - уже форматирован ? или тут надо отформотировать,но тогда передавать m 
             var y = (x * (x + b)) % n;
             var c1 = ((x + b / 2) % n) % 2;
             var c2 = IversonSymbol(x + b / 2, n);
             return Tuple.Create(y, c1, c2);
         }
+
+        //                                   y          c1           c2                           p            q           b         n 
+        static BigInteger Decrypt(Tuple<BigInteger, BigInteger, BigInteger> cipherText, Tuple<BigInteger, BigInteger, BigInteger, BigInteger> key)
+        {
+            var temp = (cipherText.Item1 + BigInteger.ModPow(key.Item3 / TWO, TWO, key.Item4))%key.Item4; // (y + b^2/4) mod n 
+            var sqrts = BlumSqrt(temp, key.Item1, key.Item2); 
+            BigInteger x = BigInteger.Zero;
+            if (sqrts.Item1 % TWO == cipherText.Item2 && JacobiSymbol(sqrts.Item1, key.Item4) == cipherText.Item3) { x = sqrts.Item1; }
+            if (sqrts.Item2 % TWO == cipherText.Item2 && JacobiSymbol(sqrts.Item2, key.Item4) == cipherText.Item3) { x = sqrts.Item2; }
+            if (sqrts.Item3 % TWO == cipherText.Item2 && JacobiSymbol(sqrts.Item3, key.Item4) == cipherText.Item3) { x = sqrts.Item3; }
+            if (sqrts.Item4 % TWO == cipherText.Item2 && JacobiSymbol(sqrts.Item4, key.Item4) == cipherText.Item3) { x = sqrts.Item4; }
+            x -= key.Item3 / TWO;
+            return DeformatMessage(x, key.Item4);
+        }
+
+        static BigInteger Sign(BigInteger m, Tuple<BigInteger, BigInteger, BigInteger, BigInteger> key)
+        {
+            BigInteger x = FormatMessage(m, key.Item4);
+            while(JacobiSymbol(x,key.Item1)!=1 || JacobiSymbol(x, key.Item2) != 1)
+            {
+                r = GeneratePrime(8);
+                x = FormatMessage(m, key.Item4);
+            }
+            var sqrts = BlumSqrt(x, key.Item1, key.Item2);
+            return sqrts.Item2;// лучше возвращать не всегда второй, а случайный из всех четырех
+        }
+
+        static bool Verify(BigInteger s, BigInteger m, BigInteger n)
+            =>  DeformatMessage(BigInteger.ModPow(s, TWO, n), n) == BigInteger.Zero;
+        //{
+        //    BigInteger x = BigInteger.ModPow(s, TWO, n);   // не знаю как лучше записать
+        //    x = DeformatMessage(x, n);
+        //    return BigInteger.Compare(x, m) == 0;
+        //}
+
+	 /* Zero Knoledge Protocol*/
+
+        static int xByteLength;
+        static BigInteger x = GeneratePrime(xByteLength); // хотя оно может быть и не простое
+        static BigInteger ZKPsendY(BigInteger n)
+            => BigInteger.ModPow(x, FOUR, n);
+       
+
+        static BigInteger ZPKrecieveYsendZ(BigInteger p, BigInteger q, BigInteger y)
+        {
+            BigInteger z = 0;
+            var sqrts = BlumSqrt(y, p, q);
+            if (JacobiSymbol(sqrts.Item1, p) == 1 && JacobiSymbol(sqrts.Item1, q) == 1) { z = sqrts.Item1; }
+            if (JacobiSymbol(sqrts.Item2, p) == 1 && JacobiSymbol(sqrts.Item2, q) == 1) { z = sqrts.Item2; }
+            if (JacobiSymbol(sqrts.Item3, p) == 1 && JacobiSymbol(sqrts.Item3, q) == 1) { z = sqrts.Item3; }
+            if (JacobiSymbol(sqrts.Item4, p) == 1 && JacobiSymbol(sqrts.Item4, q) == 1) { z = sqrts.Item4; }
+            return z;
+        }
+
+        static bool ZPKrecieveZ(BigInteger n, BigInteger z)
+            => BigInteger.ModPow(x, TWO, n) == z;
+
+
+	/* Zero Knoledge Protocol Attack*/
+
+
+        static int tByteLength;
+        static BigInteger t = GeneratePrime(tByteLength); // хотя оно может быть и не простое
+        static BigInteger ZKP_Attack_sendY(BigInteger n)
+            => BigInteger.ModPow(t, TWO, n);
+
+        static BigInteger ZKP_Attack_getDivider(BigInteger z, BigInteger n)
+        {
+            if (t == z || t == -z)
+            {
+                Console.WriteLine("Could not find p or q");
+                return BigInteger.Zero;
+            } else
+            {
+                var pq = BigInteger.GreatestCommonDivisor(t + z, n);
+                if(pq == BigInteger.One)        // можно убрать этот if и просто вернуть gcd, если ==, то атака не удалась
+                {
+                    Console.WriteLine("Could not find p or q");
+
+                }
+                return pq;
+            }
+        }
+
 
         static void Main(string[] args)
         {
