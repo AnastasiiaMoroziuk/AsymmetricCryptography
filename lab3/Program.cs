@@ -360,6 +360,34 @@ namespace Asym_Crypto_Lab_3
         static bool ZPKrecieveZ(BigInteger n, BigInteger z)
             => BigInteger.ModPow(x, TWO, n) == z;
 
+
+	/* Zero Knoledge Protocol Attack*/
+
+
+        static int tByteLength;
+        static BigInteger t = GeneratePrime(tByteLength); // хотя оно может быть и не простое
+        static BigInteger ZKP_Attack_sendY(BigInteger n)
+            => BigInteger.ModPow(t, TWO, n);
+
+        static BigInteger ZKP_Attack_getDivider(BigInteger z, BigInteger n)
+        {
+            if (t == z || t == -z)
+            {
+                Console.WriteLine("Could not find p or q");
+                return BigInteger.Zero;
+            } else
+            {
+                var pq = BigInteger.GreatestCommonDivisor(t + z, n);
+                if(pq == BigInteger.One)        // можно убрать этот if и просто вернуть gcd, если ==, то атака не удалась
+                {
+                    Console.WriteLine("Could not find p or q");
+
+                }
+                return pq;
+            }
+        }
+
+
         static void Main(string[] args)
         {
             /*var keys = GenerateKey(32, 32);
