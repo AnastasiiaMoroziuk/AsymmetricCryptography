@@ -338,6 +338,28 @@ namespace Asym_Crypto_Lab_3
         //    return BigInteger.Compare(x, m) == 0;
         //}
 
+	 /* Zero Knoledge Protocol*/
+
+        static int xByteLength;
+        static BigInteger x = GeneratePrime(xByteLength); // хотя оно может быть и не простое
+        static BigInteger ZKPsendY(BigInteger n)
+            => BigInteger.ModPow(x, FOUR, n);
+       
+
+        static BigInteger ZPKrecieveYsendZ(BigInteger p, BigInteger q, BigInteger y)
+        {
+            BigInteger z = 0;
+            var sqrts = BlumSqrt(y, p, q);
+            if (JacobiSymbol(sqrts.Item1, p) == 1 && JacobiSymbol(sqrts.Item1, q) == 1) { z = sqrts.Item1; }
+            if (JacobiSymbol(sqrts.Item2, p) == 1 && JacobiSymbol(sqrts.Item2, q) == 1) { z = sqrts.Item2; }
+            if (JacobiSymbol(sqrts.Item3, p) == 1 && JacobiSymbol(sqrts.Item3, q) == 1) { z = sqrts.Item3; }
+            if (JacobiSymbol(sqrts.Item4, p) == 1 && JacobiSymbol(sqrts.Item4, q) == 1) { z = sqrts.Item4; }
+            return z;
+        }
+
+        static bool ZPKrecieveZ(BigInteger n, BigInteger z)
+            => BigInteger.ModPow(x, TWO, n) == z;
+
         static void Main(string[] args)
         {
             /*var keys = GenerateKey(32, 32);
