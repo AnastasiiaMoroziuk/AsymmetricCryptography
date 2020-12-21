@@ -1,7 +1,6 @@
 ﻿using System;
-using System.Linq;
 using System.Numerics;
-using System.Globalization;
+using System.Linq;
 
 namespace Asym_Crypto_Lab_3
 {
@@ -11,6 +10,7 @@ namespace Asym_Crypto_Lab_3
         static BigInteger THREE = new BigInteger(3);
         static BigInteger FOUR = new BigInteger(4);
         static BigInteger r = GeneratePrime(8);
+        //static BigInteger r = BigInteger.Abs(new BigInteger(GenerateRandomByteSeed(8)));
 
         static BigInteger Inverse(BigInteger num, BigInteger mod)
         {
@@ -154,6 +154,17 @@ namespace Asym_Crypto_Lab_3
             return res;
         }
 
+        static BigInteger Trim(BigInteger num, int desiredLength)
+        {
+            var bytes = num.ToByteArray();
+            var newArr = new byte[desiredLength];
+            if(bytes.Length > desiredLength)
+            {
+                Array.Copy(bytes, newArr, desiredLength);
+                return new BigInteger(newArr);
+            }
+            return num;
+        }
         /* Prime numbers generating */
         static BigInteger GenerateBigInteger(BigInteger max)
         {
@@ -272,10 +283,10 @@ namespace Asym_Crypto_Lab_3
             var b = GenerateBlumNumber(randomBytesLength);
             return Tuple.Create(p, q, b, n);
         }
-
+        
         static BigInteger FormatMessage(BigInteger m, BigInteger n)
         {
-            var l = n.ToByteArray().Length;
+           int l = 64/*n.ToByteArray().Length*/;
             if (l - 10 < m.ToByteArray().Length)
             {
                 Console.WriteLine("message is too big for this n");
@@ -283,7 +294,9 @@ namespace Asym_Crypto_Lab_3
             }
             else
             {
-                var x = new BigInteger(255 * Math.Pow(2, 8 * (l - 8))) + m * new BigInteger(Math.Pow(2, 64)) + r;
+                var two55 = new BigInteger(255);
+                var x = r + (m << 64) + (two55 << (8 * (l - 2)));
+                // var x = new BigInteger(255) * new BigInteger(Math.Pow(2, 8 * (l - 2))) + m * new BigInteger(Math.Pow(2, 64)) + r;
                 return x;
             }
         }
@@ -291,24 +304,28 @@ namespace Asym_Crypto_Lab_3
         static BigInteger DeformatMessage(BigInteger x, BigInteger n)
         {
             var l = n.ToByteArray().Length;
-            BigInteger m = (x - r - new BigInteger(255 * Math.Pow(2, 8 * (l - 8)))) / new BigInteger(Math.Pow(2, 64));
+            BigInteger m = (x - r - new BigInteger(255 * Math.Pow(2, 8 * (l - 2)))) / new BigInteger(Math.Pow(2, 64));
             return m;
         }
 
         static Tuple<BigInteger, BigInteger, BigInteger> Encrypt(BigInteger x, BigInteger b, BigInteger n)
         {
-            //x - уже форматирован ? или тут надо отформотировать,но тогда передавать m 
-            var y = (x * (x + b)) % n;
-            var c1 = ((x + b / 2) % n) % 2;
-            var c2 = IversonSymbol(x + b / 2, n);
+            var bHalf = (b*Inverse(2, n)) % n;
+            var y = (x * (x + b))%n;
+            if (y < n) { Console.WriteLine("-------------------cokay ---------"); }
+            else { Console.WriteLine(y-n); }
+            var c1 = ((x + bHalf) % n) % 2;
+            var c2 = IversonSymbol(x + bHalf, n);
+            //var c2 = JacobiSymbol(x+bHalf, n) == BigInteger.One ? BigInteger.One : BigInteger.Zero;
             return Tuple.Create(y, c1, c2);
         }
 
         //                                   y          c1           c2                           p            q           b         n 
         static BigInteger Decrypt(Tuple<BigInteger, BigInteger, BigInteger> cipherText, Tuple<BigInteger, BigInteger, BigInteger, BigInteger> key)
         {
-            var temp = (cipherText.Item1 + BigInteger.ModPow(key.Item3 / TWO, TWO, key.Item4))%key.Item4; // (y + b^2/4) mod n 
-            var sqrts = BlumSqrt(temp, key.Item1, key.Item2); 
+            var bHalf = key.Item3 * Inverse(TWO, key.Item4);
+            var temp = (cipherText.Item1 + BigInteger.ModPow(bHalf, TWO, key.Item4)) % key.Item4; // (y + b^2/4) mod n 
+            var sqrts = BlumSqrt(temp, key.Item1, key.Item2);
             BigInteger x = BigInteger.Zero;
             if (sqrts.Item1 % TWO == cipherText.Item2 && JacobiSymbol(sqrts.Item1, key.Item4) == cipherText.Item3) { x = sqrts.Item1; }
             if (sqrts.Item2 % TWO == cipherText.Item2 && JacobiSymbol(sqrts.Item2, key.Item4) == cipherText.Item3) { x = sqrts.Item2; }
@@ -316,88 +333,42 @@ namespace Asym_Crypto_Lab_3
             if (sqrts.Item4 % TWO == cipherText.Item2 && JacobiSymbol(sqrts.Item4, key.Item4) == cipherText.Item3) { x = sqrts.Item4; }
             x -= key.Item3 / TWO;
             return DeformatMessage(x, key.Item4);
+
         }
-
-        static BigInteger Sign(BigInteger m, Tuple<BigInteger, BigInteger, BigInteger, BigInteger> key)
-        {
-            BigInteger x = FormatMessage(m, key.Item4);
-            while(JacobiSymbol(x,key.Item1)!=1 || JacobiSymbol(x, key.Item2) != 1)
-            {
-                r = GeneratePrime(8);
-                x = FormatMessage(m, key.Item4);
-            }
-            var sqrts = BlumSqrt(x, key.Item1, key.Item2);
-            return sqrts.Item2;// лучше возвращать не всегда второй, а случайный из всех четырех
-        }
-
-        static bool Verify(BigInteger s, BigInteger m, BigInteger n)
-            =>  DeformatMessage(BigInteger.ModPow(s, TWO, n), n) == BigInteger.Zero;
-        //{
-        //    BigInteger x = BigInteger.ModPow(s, TWO, n);   // не знаю как лучше записать
-        //    x = DeformatMessage(x, n);
-        //    return BigInteger.Compare(x, m) == 0;
-        //}
-
-	 /* Zero Knoledge Protocol*/
-
-        static int xByteLength;
-        static BigInteger x = GeneratePrime(xByteLength); // хотя оно может быть и не простое
-        static BigInteger ZKPsendY(BigInteger n)
-            => BigInteger.ModPow(x, FOUR, n);
-       
-
-        static BigInteger ZPKrecieveYsendZ(BigInteger p, BigInteger q, BigInteger y)
-        {
-            BigInteger z = 0;
-            var sqrts = BlumSqrt(y, p, q);
-            if (JacobiSymbol(sqrts.Item1, p) == 1 && JacobiSymbol(sqrts.Item1, q) == 1) { z = sqrts.Item1; }
-            if (JacobiSymbol(sqrts.Item2, p) == 1 && JacobiSymbol(sqrts.Item2, q) == 1) { z = sqrts.Item2; }
-            if (JacobiSymbol(sqrts.Item3, p) == 1 && JacobiSymbol(sqrts.Item3, q) == 1) { z = sqrts.Item3; }
-            if (JacobiSymbol(sqrts.Item4, p) == 1 && JacobiSymbol(sqrts.Item4, q) == 1) { z = sqrts.Item4; }
-            return z;
-        }
-
-        static bool ZPKrecieveZ(BigInteger n, BigInteger z)
-            => BigInteger.ModPow(x, TWO, n) == z;
-
-
-	/* Zero Knoledge Protocol Attack*/
-
-
-        static int tByteLength;
-        static BigInteger t = GeneratePrime(tByteLength); // хотя оно может быть и не простое
-        static BigInteger ZKP_Attack_sendY(BigInteger n)
-            => BigInteger.ModPow(t, TWO, n);
-
-        static BigInteger ZKP_Attack_getDivider(BigInteger z, BigInteger n)
-        {
-            if (t == z || t == -z)
-            {
-                Console.WriteLine("Could not find p or q");
-                return BigInteger.Zero;
-            } else
-            {
-                var pq = BigInteger.GreatestCommonDivisor(t + z, n);
-                if(pq == BigInteger.One)        // можно убрать этот if и просто вернуть gcd, если ==, то атака не удалась
-                {
-                    Console.WriteLine("Could not find p or q");
-
-                }
-                return pq;
-            }
-        }
-
 
         static void Main(string[] args)
         {
-            /*var keys = GenerateKey(32, 32);
-            var message = "A7A72D350B6E2391";
-            var formated = FormatMessage(ParseHex(message), keys.Item4);
-            var unformated = DeformatMessage(formated, keys.Item4);
+
+            // var n = ParseHex("A0B708E4AB23EAC859794C6DE04CA362B0F437F54A6CEFADF6FDF721A015E6D54F883D9BB3F1E1585175B72954131F9FC8680B10189D2C765430C832A1552D65");
+            // var b = ParseHex("3B3A9ECC0BBA6D652CFBD0904F76EA80296186C9A82A884FA55240E1AF74C35C2B8D0E6290C4A87C25CF7FB01D5F7108FDA9645499686A20F749805018A418A6");
+
+
+            var n = ParseHex("A0B708E4AB23EAC859794C6DE04CA362B0F437F54A6CEFADF6FDF721A015E6D54F883D9BB3F1E1585175B72954131F9FC8680B10189D2C765430C832A1552D65");
+            var b = ParseHex("3B3A9ECC0BBA6D652CFBD0904F76EA80296186C9A82A884FA55240E1AF74C35C2B8D0E6290C4A87C25CF7FB01D5F7108FDA9645499686A20F749805018A418A6");
+
+            Console.WriteLine("b =   " + b.ToByteArray().Length);
+            Console.WriteLine("n =   " + n.ToByteArray().Length);
+
+            Console.WriteLine("b =   " + b/*.ToString("X")*/);
+            Console.WriteLine("n =   " + n/*.ToString("X")*/);
+
+            Console.WriteLine(r.ToByteArray().Length);
+
+            var message = "A7A72D350B6E2391676758574847";
+            var formated = FormatMessage(ParseHex(message), n);
             Console.WriteLine(formated.ToString("X"));
-            Console.WriteLine(unformated.ToString("X"));*/
+            Console.WriteLine(formated.ToByteArray().Length);
+            var encrypted = Encrypt(formated, b, n);
+
+            Console.WriteLine("=========================================");
+            Console.WriteLine("y =   " + encrypted.Item1.ToString("X"));
+            Console.WriteLine("c1 =   " + encrypted.Item2.ToString("X"));
+            Console.WriteLine("c2 =   " + encrypted.Item3.ToString("X"));
 
 
+            //var bHalf = (b* Inverse(TWO, n))%n;
+            //var temp = (encrypted.Item1 + BigInteger.ModPow(bHalf, TWO,n)) % n; // (y + b^2/4) mod n 
+            //Console.WriteLine("x =   " + temp.ToString("X"));
             Console.ReadKey();
         }
 
