@@ -112,8 +112,10 @@ namespace Asym_Crypto_Lab_3
             //var temp = GCD_Ext(p, q);
             BigInteger u = Inverse(p, q);
             BigInteger v = Inverse(q, p);
-            BigInteger x1 = (((u * p * s2) % n) + ((v * q * s1) % n))%n;
-            BigInteger x2 = (((u * p * s2) % n) - ((v * q * s1) % n))%n;
+            BigInteger x1 = (((u * p * s2) % n) + ((v * q * s1) % n)) % n;
+            BigInteger x2 = ((u * p * s2) - (v * q * s1)) % n;
+            if (x1 < BigInteger.Zero) { x1 += n; }
+            if (x2 < BigInteger.Zero) { x2 += n; }
             BigInteger x3 =/* -((u * p * s2) % n) + ((v * q * s1) % n)*/ n - x1;
             BigInteger x4 = /*-((u * p * s2) % n) - ((v * q * s1) % n)*/ n - x2;
             return Tuple.Create(x1, x2, x3, x4);
@@ -275,10 +277,10 @@ namespace Asym_Crypto_Lab_3
             var b = GenerateBlumNumber(randomBytesLength);
             return Tuple.Create(p, q, b, n);
         }
-        
+
         static BigInteger FormatMessage(BigInteger m, BigInteger n)
         {
-           int l = 64/*n.ToByteArray().Length*/;
+            int l = 64/*n.ToByteArray().Length*/;
             if (l - 10 < m.ToByteArray().Length)
             {
                 Console.WriteLine("message is too big for this n");
@@ -303,8 +305,8 @@ namespace Asym_Crypto_Lab_3
 
         static Tuple<BigInteger, BigInteger, BigInteger> Encrypt(BigInteger x, BigInteger b, BigInteger n)
         {
-            var bHalf = (b*Inverse(2, n)) % n;
-            var y = (x * (x + b))%n;
+            var bHalf = (b * Inverse(2, n)) % n;
+            var y = (x * (x + b)) % n;
             var c1 = ((x + bHalf) % n) % 2;
             var c2 = IversonSymbol(x + bHalf, n);
             //var c2 = JacobiSymbol(x+bHalf, n) == BigInteger.One ? BigInteger.One : BigInteger.Zero;
@@ -315,17 +317,17 @@ namespace Asym_Crypto_Lab_3
         static BigInteger Decrypt(Tuple<BigInteger, BigInteger, BigInteger> cipherText, Tuple<BigInteger, BigInteger, BigInteger, BigInteger> key)
         {
             var bHalf = (key.Item3 * Inverse(TWO, key.Item4)) % key.Item4;
-            var temp = (cipherText.Item1 + BigInteger.ModPow(bHalf, TWO, key.Item4)) % key.Item4; 
+            var temp = (cipherText.Item1 + BigInteger.ModPow(bHalf, TWO, key.Item4)) % key.Item4;
             var sqrts = BlumSqrt(temp, key.Item1, key.Item2);
 
-            BigInteger x = BigInteger.Zero;
-            if (sqrts.Item1 % TWO == cipherText.Item2 && JacobiSymbol(sqrts.Item1, key.Item4) == cipherText.Item3) { x = sqrts.Item1; }
-                //Console.WriteLine(sqrts.Item1.ToString("X"));
-            if (sqrts.Item2 % TWO == cipherText.Item2 && JacobiSymbol(sqrts.Item2, key.Item4) == cipherText.Item3) { x = sqrts.Item2; }
-                //Console.WriteLine(sqrts.Item2.ToString("X"));
-            if (sqrts.Item3 % TWO == cipherText.Item2 && JacobiSymbol(sqrts.Item3, key.Item4) == cipherText.Item3) { x = sqrts.Item3; }
-                //Console.WriteLine(sqrts.Item3.ToString("X"));
-            if (sqrts.Item4 % TWO == cipherText.Item2 && JacobiSymbol(sqrts.Item4, key.Item4) == cipherText.Item3) { x = sqrts.Item4; }
+            BigInteger x = BigInteger.Zero;//jacobi(roots[0], publicKeyN) == 1 ? 1 : 0
+            if (sqrts.Item1 % TWO == cipherText.Item2 && IversonSymbol(sqrts.Item1, key.Item4) == cipherText.Item3) { x = sqrts.Item1; }
+            //Console.WriteLine(sqrts.Item1.ToString("X"));
+            if (sqrts.Item2 % TWO == cipherText.Item2 && IversonSymbol(sqrts.Item2, key.Item4) == cipherText.Item3) { x = sqrts.Item2; }
+            //Console.WriteLine(sqrts.Item2.ToString("X"));
+            if (sqrts.Item3 % TWO == cipherText.Item2 && IversonSymbol(sqrts.Item3, key.Item4) == cipherText.Item3) { x = sqrts.Item3; }
+            //Console.WriteLine(sqrts.Item3.ToString("X"));
+            if (sqrts.Item4 % TWO == cipherText.Item2 && IversonSymbol(sqrts.Item4, key.Item4) == cipherText.Item3) { x = sqrts.Item4; }
             //    Console.WriteLine(sqrts.Item4.ToString("X"));
             Console.WriteLine(x.ToString("X"));
             x -= bHalf;
@@ -352,7 +354,7 @@ namespace Asym_Crypto_Lab_3
 
 
         /* Zero Knoledge Protocol*/
-        
+
         static BigInteger ZKPsendY(BigInteger n, BigInteger x)
             => BigInteger.ModPow(x, FOUR, n);
 
@@ -400,7 +402,7 @@ namespace Asym_Crypto_Lab_3
         {
 
             var rndm = new Random();
-            
+
             var keys = GenerateKey(32, 32);// p q b n 
             Console.WriteLine("p = " + keys.Item1.ToString("X"));
             Console.WriteLine("q = " + keys.Item2.ToString("X"));
