@@ -49,6 +49,7 @@ namespace Asym_Crypto_Lab_2 {
 
         /* Miller-Rabin Test */
         static BigInteger TWO = new BigInteger(2);
+        static BigInteger THREE = new BigInteger(3);
 
         static BigInteger GenerateBigInteger(BigInteger max) {
             Random rnd = new Random();
@@ -68,8 +69,9 @@ namespace Asym_Crypto_Lab_2 {
             return seed;
         }
 
-        static bool MillerRabinTest(BigInteger num, int k = 30) {
-            if (num == TWO || num == new BigInteger(3)) {
+        static bool MillerRabinTest(BigInteger num, int k = 30) //робили по псевдокоду з вікіпедії
+        {
+            if (num == TWO || num == THREE) {
                 return true;
             }
             if (num < TWO || num % TWO == BigInteger.Zero) {
@@ -260,8 +262,6 @@ namespace Asym_Crypto_Lab_2 {
                     Console.Write("Enter M: ");
                     string M_hex = Console.ReadLine();
                     var M = ParseHex(M_hex);
-                    string e_hex = Console.ReadLine();
-                    var e = ParseHex(e_hex);
                     var C = Encrypt(M, B_e, B_n);
                     Console.WriteLine("C = " + DecToHex(C));
                     Console.WriteLine("----------");

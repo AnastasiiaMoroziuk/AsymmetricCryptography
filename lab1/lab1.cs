@@ -92,7 +92,7 @@ namespace asymCrypto_1
         //---------------------------------------------------------  L F S R  ------------------------------------------------------------------------
 
         static byte[] LFSR_Bytes(int[] seed, double len, List<int> indexes) //общая функция ЛРС возвращающая байты
-        {                                                        // indexes - индексы генератора                  
+        {                                                                   // indexes - индексы генератора                  
             int[] bits = new int[8];
             int j = 0;
             List<byte> bytes = new List<byte>();
@@ -257,8 +257,8 @@ namespace asymCrypto_1
 
         //---------------------------------------------------------------  B M  ---------------------------------------------------------------------
 
-        static BigInteger pBM1 = BigInteger.Parse("CEA42B987C44FA642D80AD9F51F10457690DEF10C83D0BC1BCEE12FC3B6093E3", System.Globalization.NumberStyles.AllowHexSpecifier);
-        //static BigInteger                 aBM = BigInteger.Parse("5B88C41246790891C095E2878880342E88C79974303BD0400B090FE38A688356", System.Globalization.NumberStyles.AllowHexSpecifier);
+        //static BigInteger pBM1 = BigInteger.Parse("CEA42B987C44FA642D80AD9F51F10457690DEF10C83D0BC1BCEE12FC3B6093E3", System.Globalization.NumberStyles.AllowHexSpecifier);
+        //static BigInteger aBM = BigInteger.Parse("5B88C41246790891C095E2878880342E88C79974303BD0400B090FE38A688356", System.Globalization.NumberStyles.AllowHexSpecifier);
 
         static BigInteger pBM = BigInteger.Parse("93466510612868436543809057926265637055082661966786875228460721852868821292003"),
                           aBM = BigInteger.Parse("41402113656871763270073938229168765778879686959780184368336806110280536326998"),
@@ -273,7 +273,6 @@ namespace asymCrypto_1
             byte[] seed = new byte[32];
             rnd.NextBytes(seed);
             seed[31] = (byte)rnd.Next(0, (int)maxByteValue);
-            //seed[seed.Length - 1] &= 0b01111111;
             return seed;
         }
 
@@ -363,8 +362,7 @@ namespace asymCrypto_1
             {
                 rNext = BigInteger.ModPow(rNext, 2, nBBS);
                 var rNextArray = rNext.ToByteArray(true, false);
-                byte lowestByte = rNextArray[0];
-                bits[j] = lowestByte % 2;
+                bits[j] = rNextArray[0] % 2;
                 j++;
                 if (j == 8)
                 {
@@ -409,7 +407,7 @@ namespace asymCrypto_1
             for (int i = 0; i < bytes.Length-1; i+=2)
             {
                 pairsFreq[bytes[i], bytes[i+1]]++;
-                vi[bytes[i]] ++;
+                vi[bytes[i]]++;
                 aj[bytes[i+1]]++;
             }
             return Tuple.Create(pairsFreq, vi, aj);// 1 - frequency of a pair, 2 - frequency of 1 el, frequency of 2 el
@@ -436,8 +434,8 @@ namespace asymCrypto_1
 
         //----------------------- U N I F O R M I T Y
         static double CalculateTheorHiSquared(double quantile, double l)// l зависит от теста:  1 - l =255
-             => Math.Round(Math.Sqrt(2 * l) * quantile + l,8);        //                        2 - l = 255*255
-                                                                     //                         3 - l = 255*(r-1)
+             => Math.Round(Math.Sqrt(2 * l) * quantile + l,8);                            //    2 - l = 255*255
+                                                                                          //    3 - l = 255*(r-1)
 
         static Tuple<double[,], double[]> CountItemsUniformity(byte[] bytes, int r)
         {
@@ -489,11 +487,13 @@ namespace asymCrypto_1
         }
 
         //----------------------------------------------------------------------------------------------------------------------------------------------
+
       static void DisplayTestResut(string pathOutput,string generatorName, string testName,double alpha, double hiSquared, double theorHiSquared, bool result)
         {
             File.AppendAllText(pathOutput, generatorName.PadRight(15) + " | " + testName.PadRight(20) + " | " + alpha.ToString().PadRight(7) + " | " + hiSquared.ToString().PadRight(20) + " | " + theorHiSquared.ToString().PadRight(15) + " | " + result +'\n');
             File.AppendAllText(pathOutput, "--------------------------------------------------------------------------------------------------" + "\n");
         }
+
         //----------------------------------------------------------------------------------------------------------------------------------------------
         static void Main(string[] args)
         {
@@ -682,32 +682,6 @@ namespace asymCrypto_1
             }
             File.AppendAllText(outputPath, "\n");
 
-
-            //int falsesCounter = 0;
-            //for (int j = 0; j < 1000; j++)
-            //{
-            //    var l9 = L_9(GenerateRandomBitsSeed(9), byteSequenceLength * 8);
-            //    var l10 = L_10(GenerateRandomBitsSeed(10), byteSequenceLength * 8);
-            //    var l11 = L_9(GenerateRandomBitsSeed(11), byteSequenceLength * 8);
-            //    var geffeBytes = Geffe(l9, l10, l11);
-
-            //    for (int i = 0; i < 3; i++)
-            //    {
-            //        //var geffeBytesEquiprobResults = EquiprobabilityTEST(CountBytes(geffeBytes), TheoryChiSquared[0, i]);
-            //        //DisplayTestResut(outputGeffe11, "Geffe", "Equiprobability", Alpha[i], geffeBytesEquiprobResults.Item1, TheoryChiSquared[0, i], geffeBytesEquiprobResults.Item2);
-            //        //var geffeBytesIndependResults = IndependenceTEST(CountItemsIndependence(geffeBytes), TheoryChiSquared[1, i]);
-            //        //DisplayTestResut(outputGeffe11, "Geffe", "Independence", Alpha[i], geffeBytesIndependResults.Item1, TheoryChiSquared[1, i], geffeBytesIndependResults.Item2);
-            //        TheoryChiSquared[2, i] = CalculateTheorHiSquared(Quantiles[i], 255 * (r - 1));
-            //        var geffeBytesUniformResults = UniformityTEST(CountItemsUniformity(geffeBytes, r), TheoryChiSquared[2, i]);
-            //        DisplayTestResut(outputGeffe11, "Geffe", "Uniformity", Alpha[i], geffeBytesUniformResults.Item1, TheoryChiSquared[2, i], geffeBytesUniformResults.Item2);
-            //        if (geffeBytesUniformResults.Item2 == false) falsesCounter++;
-            //    }
-            //    File.AppendAllText(outputGeffe11, "\n");
-            //}
-            //File.AppendAllText(outputGeffe11, "\n" + "Count of Falses: " + falsesCounter);
-
-
-            Console.WriteLine("done");
             Console.ReadKey();
         }
     }
