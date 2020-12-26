@@ -196,7 +196,7 @@ namespace Asym_Crypto_Lab_3
 
             while (d % TWO == BigInteger.Zero)
             {
-                d = d / TWO;
+                d /= TWO;
                 s++;
             }
 
@@ -248,10 +248,12 @@ namespace Asym_Crypto_Lab_3
             var bytes = GenerateRandomByteSeed(byteLength);
             var num = BigInteger.Abs(new BigInteger(bytes));
 
+            Console.WriteLine("Generated numbers: ");
             while (!MillerRabinTest(num))
             {
                 bytes = GenerateRandomByteSeed(byteLength);
                 num = BigInteger.Abs(new BigInteger(bytes));
+                Console.WriteLine(num.ToString("X"));
             }
             return num;
         }
@@ -344,7 +346,6 @@ namespace Asym_Crypto_Lab_3
 
 
         /* Zero Knoledge Protocol*/
-
         static BigInteger ZKPsendY(BigInteger n, BigInteger x)
             => BigInteger.ModPow(x, FOUR, n);
 
@@ -364,8 +365,6 @@ namespace Asym_Crypto_Lab_3
             => BigInteger.Compare(BigInteger.ModPow(x, TWO, n), z) == 0;
 
         /* Zero Knoledge Protocol Attack*/
-
-
         static BigInteger ZKP_Attack_sendY(BigInteger n, BigInteger t)
             => BigInteger.ModPow(t, TWO, n);
 
@@ -379,7 +378,8 @@ namespace Asym_Crypto_Lab_3
             else
             {
                 var pq = BigInteger.GreatestCommonDivisor(t + z, n);
-                if (pq == BigInteger.One) { 
+                if (pq == BigInteger.One)
+                {
                     Console.WriteLine("Could not find p or q");
 
                 }
@@ -389,10 +389,11 @@ namespace Asym_Crypto_Lab_3
 
         static void Main(string[] args)
         {
-
             var rndm = new Random();
 
-            var keys = GenerateKey(32, 32);// p q b n 
+            var keys = GenerateKey(32, 32);
+            Console.WriteLine("p = " + keys.Item1.ToString("X"));
+            Console.WriteLine("q = " + keys.Item2.ToString("X"));
             Console.WriteLine("b = " + keys.Item3.ToString("X"));
             Console.WriteLine("n = " + keys.Item4.ToString("X"));
 
@@ -408,7 +409,6 @@ namespace Asym_Crypto_Lab_3
                 Console.WriteLine("Dec - Decryption");
                 Console.WriteLine("Sign - Sign");
                 Console.WriteLine("Ver - Verification");
-                Console.WriteLine("ZKP - Zero Knowledge Protol");
                 Console.WriteLine("A - Zero Knowledge Attack");
                 Console.WriteLine("END - End");
                 Console.WriteLine("----------");
@@ -426,12 +426,15 @@ namespace Asym_Crypto_Lab_3
                     Console.Write("Enter M: ");
                     string M_hex = Console.ReadLine();
                     var M = ParseHex(M_hex);
+
                     Console.Write("Enter n: ");
                     string n_hex = Console.ReadLine();
                     var n = ParseHex(n_hex);
+
                     Console.Write("Enter b: ");
                     string b_hex = Console.ReadLine();
                     var b = ParseHex(b_hex);
+
                     var formated = FormatMessage(M, n);
                     var C = Encrypt(formated, b, n);
                     Console.WriteLine("Y = " + C.Item1.ToString("X"));
@@ -469,6 +472,7 @@ namespace Asym_Crypto_Lab_3
                     Console.Write("Enter M: ");
                     string M_hex = Console.ReadLine();
                     var M = ParseHex(M_hex);
+
                     var s = Sign(M, keys);
                     Console.WriteLine("S = " + s.ToString("X"));
                     Console.WriteLine("----------");
@@ -499,7 +503,7 @@ namespace Asym_Crypto_Lab_3
                     while (true)
                     {
                         int tByteLength = rndm.Next(1, 64);
-                        BigInteger t = GeneratePrime(tByteLength); 
+                        BigInteger t = GeneratePrime(tByteLength);
 
                         Console.Write("Enter n:");
                         string n_hex = Console.ReadLine();
@@ -518,7 +522,7 @@ namespace Asym_Crypto_Lab_3
                             Console.WriteLine("P  =  " + foundP.ToString("X"));
                             var foundQ = n / foundP;
                             Console.WriteLine("Q  =  " + foundQ.ToString("X"));
-                            Console.Write("computed n = " );
+                            Console.Write("computed n = ");
                             Console.Write((foundP * foundQ).ToString("X"));
                             Console.WriteLine(foundQ * foundP == n);
                             break;
@@ -526,11 +530,9 @@ namespace Asym_Crypto_Lab_3
                     }
 
                 }
-
-
             }
+
             Console.ReadKey();
         }
-
     }
 }

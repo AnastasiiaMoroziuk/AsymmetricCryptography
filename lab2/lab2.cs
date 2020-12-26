@@ -1,16 +1,17 @@
 ﻿using System;
 using System.Linq;
 using System.Numerics;
-using System.Globalization;
 
-namespace Asym_Crypto_Lab_2 {
-
-    class Program {
-
-        static string HexToBin(string hexString) {
+namespace Asym_Crypto_Lab_2
+{
+    class Program
+    {
+        static string HexToBin(string hexString)
+        {
             string binString = "";
 
-            for (int i = 0; i < hexString.Length; i++) {
+            for (int i = 0; i < hexString.Length; i++)
+            {
                 if (hexString[i] == '0') { binString += "0000"; }
                 if (hexString[i] == '1') { binString += "0001"; }
                 if (hexString[i] == '2') { binString += "0010"; }
@@ -32,10 +33,12 @@ namespace Asym_Crypto_Lab_2 {
             return binString;
         }
 
-        static BigInteger ParseHex(string hexStr) {
+        static BigInteger ParseHex(string hexStr)
+        {
             string binaryStr = HexToBin(hexStr);
             var res = BigInteger.Zero;
-            foreach (char c in binaryStr) {
+            foreach (char c in binaryStr)
+            {
                 res <<= 1;
                 res += c == '1' ? 1 : 0;
             }
@@ -43,7 +46,8 @@ namespace Asym_Crypto_Lab_2 {
             return res;
         }
 
-        static string DecToHex(BigInteger num) {
+        static string DecToHex(BigInteger num)
+        {
             return num.ToString("X");
         }
 
@@ -51,7 +55,8 @@ namespace Asym_Crypto_Lab_2 {
         static BigInteger TWO = new BigInteger(2);
         static BigInteger THREE = new BigInteger(3);
 
-        static BigInteger GenerateBigInteger(BigInteger max) {
+        static BigInteger GenerateBigInteger(BigInteger max)
+        {
             Random rnd = new Random();
             byte[] maxBytes = max.ToByteArray(true, false);
             byte[] seedBytes = new byte[maxBytes.Length];
@@ -60,7 +65,8 @@ namespace Asym_Crypto_Lab_2 {
             seedBytes[seedBytes.Length - 1] &= (byte)0x7F;
             var seed = new BigInteger(seedBytes);
 
-            while (seed > max || seed < TWO) {
+            while (seed > max || seed < TWO)
+            {
                 rnd.NextBytes(seedBytes);
                 seedBytes[seedBytes.Length - 1] &= (byte)0x7F;
                 seed = new BigInteger(seedBytes);
@@ -71,37 +77,46 @@ namespace Asym_Crypto_Lab_2 {
 
         static bool MillerRabinTest(BigInteger num, int k = 30) //робили по псевдокоду з вікіпедії
         {
-            if (num == TWO || num == THREE) {
+            if (num == TWO || num == THREE)
+            {
                 return true;
             }
-            if (num < TWO || num % TWO == BigInteger.Zero) {
+            if (num < TWO || num % TWO == BigInteger.Zero)
+            {
                 return false;
             }
 
             BigInteger d = num - BigInteger.One;
             int s = 0;
 
-            while (d % TWO == BigInteger.Zero){
-                d = d / TWO;
+            while (d % TWO == BigInteger.Zero)
+            {
+                d /= TWO;
                 s++;
             }
 
-            for (int i = 0; i < k; i++) {
+            for (int i = 0; i < k; i++)
+            {
                 var a = GenerateBigInteger(num - TWO);
                 var x = BigInteger.ModPow(a, d, num);
-                if (x == BigInteger.One || x == num - BigInteger.One) {
+                if (x == BigInteger.One || x == num - BigInteger.One)
+                {
                     continue;
                 }
-                for (int j = 0; j < s; j++) {
+                for (int j = 0; j < s; j++)
+                {
                     x = BigInteger.ModPow(x, TWO, num);
-                    if (x == BigInteger.One) {
+                    if (x == BigInteger.One)
+                    {
                         return false;
                     }
-                    if (x == num - BigInteger.One) {
+                    if (x == num - BigInteger.One)
+                    {
                         break;
                     }
                 }
-                if (x != num - BigInteger.One) {
+                if (x != num - BigInteger.One)
+                {
                     return false;
                 }
             }
@@ -110,47 +125,58 @@ namespace Asym_Crypto_Lab_2 {
         }
 
         /* Prime numbers generator */
-        static byte[] GenerateRandomByteSeed(int size) {
+        static byte[] GenerateRandomByteSeed(int size)
+        {
             Random rnd = new Random();
             byte[] seed = new byte[size];
             byte[] zeros = new byte[size];
             Array.Fill(zeros, (byte)0);
             rnd.NextBytes(seed);
-            if (seed.SequenceEqual(zeros)) {
+            if (seed.SequenceEqual(zeros))
+            {
                 seed[seed.Length - 1] = (byte)1;
             }
             return seed;
         }
 
-        static BigInteger GeneratePrime(int byteLength) {
+        static BigInteger GeneratePrime(int byteLength)
+        {
             var bytes = GenerateRandomByteSeed(byteLength);
             var num = BigInteger.Abs(new BigInteger(bytes));
-
-            while (!MillerRabinTest(num)) {
+            Console.WriteLine("Generated numbers: ");
+            while (!MillerRabinTest(num))
+            {
                 bytes = GenerateRandomByteSeed(byteLength);
                 num = BigInteger.Abs(new BigInteger(bytes));
+                Console.WriteLine(DecToHex(num));
             }
+
             return num;
         }
 
-        static Tuple<BigInteger, BigInteger> GeneratePrimePair(int byteLength) {
+        static Tuple<BigInteger, BigInteger> GeneratePrimePair(int byteLength)
+        {
             BigInteger p = GeneratePrime(byteLength);
             BigInteger q = GeneratePrime(byteLength);
-            while (p.ToByteArray().Length > byteLength || q.ToByteArray().Length > byteLength) {
+            while (p.ToByteArray().Length > byteLength || q.ToByteArray().Length > byteLength)
+            {
                 p = GeneratePrime(byteLength);
                 q = GeneratePrime(byteLength);
             }
-            while (BigInteger.Compare(p, q) == 0) {
+            while (BigInteger.Compare(p, q) == 0)
+            {
                 q = GeneratePrime(byteLength);
             }
             return Tuple.Create(p, q);
         }
 
         /* RSA */
-        static BigInteger Inverse(BigInteger num, BigInteger mod) {
+        static BigInteger Inverse(BigInteger num, BigInteger mod)
+        {
             BigInteger q, r, t, u1 = BigInteger.One, u2 = BigInteger.Zero, v1 = BigInteger.Zero, v2 = BigInteger.One,
                         a = num, b = mod;
-            while (b != BigInteger.Zero) {
+            while (b != BigInteger.Zero)
+            {
                 q = a / b;
                 r = a % b;
                 a = b; b = r;
@@ -161,13 +187,15 @@ namespace Asym_Crypto_Lab_2 {
                 v2 = v1 - q * v2;
                 v1 = t;
             }
-            if (u1 < BigInteger.Zero) {
+            if (u1 < BigInteger.Zero)
+            {
                 u1 += mod;
             }
             return u1;
         }
 
-        static Tuple<Tuple<BigInteger, BigInteger>, BigInteger> GenerateKeyPair(BigInteger p, BigInteger q) {
+        static Tuple<Tuple<BigInteger, BigInteger>, BigInteger> GenerateKeyPair(BigInteger p, BigInteger q)
+        {
             BigInteger e, n, d;
             e = new BigInteger(Math.Pow(2, 16) + 1);
             n = p * q;
@@ -189,7 +217,8 @@ namespace Asym_Crypto_Lab_2 {
         static bool Verify(BigInteger M, BigInteger S, BigInteger e, BigInteger n)
             => BigInteger.Compare(M, BigInteger.ModPow(S, e, n)) == 0;
 
-        static Tuple<BigInteger, BigInteger> SendKey(BigInteger e1, BigInteger n1, BigInteger n, BigInteger d, BigInteger k) {
+        static Tuple<BigInteger, BigInteger> SendKey(BigInteger e1, BigInteger n1, BigInteger n, BigInteger d, BigInteger k)
+        {
             BigInteger S = BigInteger.ModPow(k, d, n);
             BigInteger k1 = BigInteger.ModPow(k, e1, n1);
             BigInteger S1 = BigInteger.ModPow(S, e1, n1);
@@ -197,7 +226,8 @@ namespace Asym_Crypto_Lab_2 {
             return Tuple.Create(k1, S1);
         }
 
-        static bool RecieveKey(BigInteger d1, BigInteger n1, BigInteger k1, BigInteger S1, BigInteger e, BigInteger n) {
+        static bool RecieveKey(BigInteger d1, BigInteger n1, BigInteger k1, BigInteger S1, BigInteger e, BigInteger n)
+        {
             BigInteger k = BigInteger.ModPow(k1, d1, n1);
             BigInteger S = BigInteger.ModPow(S1, d1, n1);
             Console.WriteLine("k = " + DecToHex(k));
@@ -206,26 +236,27 @@ namespace Asym_Crypto_Lab_2 {
             return Verify(k, S, e, n);
         }
 
-        static void Main(string[] args) {
+        static void Main(string[] args)
+        {
             var A_pq = GeneratePrimePair(32);
-            Console.WriteLine("Enter public key");
-            Console.WriteLine("----------");
-            Console.Write("Enter n: ");
-            var B_n_hex = Console.ReadLine();
-            var B_n = ParseHex(B_n_hex);
-            Console.Write("Enter e: ");
-            var B_e_hex = Console.ReadLine();
-            var B_e = ParseHex(B_e_hex);
-            Console.WriteLine("----------");
-            while (A_pq.Item1 * A_pq.Item2 > B_n) {
+            var B_pq = GeneratePrimePair(32);
+            var A_keys = GenerateKeyPair(A_pq.Item1, A_pq.Item2);
+            var B_keys = GenerateKeyPair(B_pq.Item1, B_pq.Item2);
+            while (A_pq.Item1 * A_pq.Item2 > B_pq.Item1 * B_pq.Item2)
+            {
                 A_pq = GeneratePrimePair(32);
             }
 
-            var A_keys = GenerateKeyPair(A_pq.Item1, A_pq.Item2);
+
             var A_publicKey = A_keys.Item1;
             var A_e = A_publicKey.Item1;
             var A_n = A_publicKey.Item2;
             var A_secretKey = A_keys.Item2;
+
+            var B_publicKey = B_keys.Item1;
+            var B_e = B_publicKey.Item1;
+            var B_n = B_publicKey.Item2;
+            var B_secretKey = B_keys.Item2;
 
             Console.WriteLine("==================================================");
             Console.WriteLine("p = " + DecToHex(A_pq.Item1));
@@ -233,10 +264,17 @@ namespace Asym_Crypto_Lab_2 {
             Console.WriteLine("n = " + DecToHex(A_n));
             Console.WriteLine("e = " + DecToHex(A_e));
             Console.WriteLine("d = " + DecToHex(A_secretKey));
+            Console.WriteLine("--------------------------------------------------");
+            Console.WriteLine("p1 = " + DecToHex(B_pq.Item1));
+            Console.WriteLine("q1 = " + DecToHex(B_pq.Item2));
+            Console.WriteLine("n1 = " + DecToHex(B_n));
+            Console.WriteLine("e1 = " + DecToHex(B_e));
+            Console.WriteLine("d1 = " + DecToHex(B_secretKey));
             Console.WriteLine("==================================================");
 
             bool isWorking = true;
-            while(isWorking) {
+            while (isWorking)
+            {
                 Console.WriteLine();
                 Console.WriteLine("==================================================");
                 Console.WriteLine();
@@ -251,65 +289,152 @@ namespace Asym_Crypto_Lab_2 {
                 Console.WriteLine("RK - Receive key");
                 Console.WriteLine("End - End");
                 Console.WriteLine("----------");
+
                 Console.Write("Your choice: ");
                 string action = Console.ReadLine();
-                if(action == "End") {
+
+                if (action == "End")
+                {
                     isWorking = false;
                     break;
                 }
-                else if(action == "Enc") {
+
+                if (action == "Enc")
+                {
                     Console.WriteLine("----------");
                     Console.Write("Enter M: ");
                     string M_hex = Console.ReadLine();
                     var M = ParseHex(M_hex);
-                    var C = Encrypt(M, B_e, B_n);
+
+                    Console.Write("Enter e: ");
+                    string e_hex = Console.ReadLine();
+                    var e = ParseHex(e_hex);
+
+                    Console.Write("Enter n: ");
+                    string n_hex = Console.ReadLine();
+                    var n = ParseHex(n_hex);
+
+                    var C = Encrypt(M, e, n);
                     Console.WriteLine("C = " + DecToHex(C));
                     Console.WriteLine("----------");
-                } 
-                else if(action == "Dec") {
+                }
+
+                if (action == "Dec")
+                {
                     Console.Write("Enter C: ");
                     string C_hex = Console.ReadLine();
                     var C = ParseHex(C_hex);
-                    var M = Decrypt(C, A_secretKey, A_n);
+
+                    Console.Write("Enter d: ");
+                    string d_hex = Console.ReadLine();
+                    var d = ParseHex(d_hex);
+
+                    Console.Write("Enter n: ");
+                    string n_hex = Console.ReadLine();
+                    var n = ParseHex(n_hex);
+
+                    var M = Decrypt(C, d, n);
                     Console.WriteLine("M = " + DecToHex(M));
                     Console.WriteLine("----------");
                 }
-                else if(action == "Sign") {
+
+                if (action == "Sign")
+                {
                     Console.Write("Enter M: ");
                     string M_hex = Console.ReadLine();
                     var M = ParseHex(M_hex);
-                    var S = Sign(M, A_secretKey, A_n);
+
+                    Console.Write("Enter d: ");
+                    string d_hex = Console.ReadLine();
+                    var d = ParseHex(d_hex);
+
+                    Console.Write("Enter n: ");
+                    string n_hex = Console.ReadLine();
+                    var n = ParseHex(n_hex);
+
+                    var S = Sign(M, d, n);
                     Console.WriteLine("S = " + DecToHex(S));
                     Console.WriteLine("----------");
                 }
-                else if(action == "Ver") {
+
+                if (action == "Ver")
+                {
                     Console.Write("Enter M: ");
                     string M_hex = Console.ReadLine();
                     var M = ParseHex(M_hex);
+
                     Console.Write("Enter S: ");
                     string S_hex = Console.ReadLine();
                     var S = ParseHex(S_hex);
-                    var result = Verify(M, S, B_e, B_n);
+
+                    Console.Write("Enter e: ");
+                    string e_hex = Console.ReadLine();
+                    var e = ParseHex(e_hex);
+
+                    Console.Write("Enter n: ");
+                    string n_hex = Console.ReadLine();
+                    var n = ParseHex(n_hex);
+
+                    var result = Verify(M, S, e, n);
                     Console.WriteLine("Verification result: " + result);
                     Console.WriteLine("----------");
                 }
-                else if(action == "SK") {
+
+                if (action == "SK")
+                {
                     Console.Write("Enter k: ");
                     string k_hex = Console.ReadLine();
                     var k = ParseHex(k_hex);
-                    var result = SendKey(B_e, B_n, A_n, A_secretKey, k);
+
+                    Console.Write("Enter e1: ");
+                    string e1_hex = Console.ReadLine();
+                    var e1 = ParseHex(e1_hex);
+
+                    Console.Write("Enter n1: ");
+                    string n1_hex = Console.ReadLine();
+                    var n1 = ParseHex(n1_hex);
+
+                    Console.Write("Enter d: ");
+                    string d_hex = Console.ReadLine();
+                    var d = ParseHex(d_hex);
+
+                    Console.Write("Enter n: ");
+                    string n_hex = Console.ReadLine();
+                    var n = ParseHex(n_hex);
+
+                    var result = SendKey(e1, n1, n, d, k);
                     Console.WriteLine("k1 = " + DecToHex(result.Item1));
                     Console.WriteLine("S1 = " + DecToHex(result.Item2));
                     Console.WriteLine("----------");
                 }
-                else if (action == "RK") {
+
+                if (action == "RK")
+                {
                     Console.Write("Enter k1: ");
                     string k1_hex = Console.ReadLine();
                     var k1 = ParseHex(k1_hex);
+
                     Console.Write("Enter S1: ");
                     string S1_hex = Console.ReadLine();
                     var S1 = ParseHex(S1_hex);
-                    var result = RecieveKey(A_secretKey, A_n, k1, S1, B_e, B_n);
+
+                    Console.Write("Enter e1: ");
+                    string e1_hex = Console.ReadLine();
+                    var e1 = ParseHex(e1_hex);
+
+                    Console.Write("Enter n1: ");
+                    string n1_hex = Console.ReadLine();
+                    var n1 = ParseHex(n1_hex);
+
+                    Console.Write("Enter d: ");
+                    string d_hex = Console.ReadLine();
+                    var d = ParseHex(d_hex);
+
+                    Console.Write("Enter n: ");
+                    string n_hex = Console.ReadLine();
+                    var n = ParseHex(n_hex);
+                    
+                    var result = RecieveKey(d, n, k1, S1, e1, n1);
                     Console.WriteLine("Result:" + result);
                 }
             }
@@ -318,4 +443,3 @@ namespace Asym_Crypto_Lab_2 {
         }
     }
 }
-
